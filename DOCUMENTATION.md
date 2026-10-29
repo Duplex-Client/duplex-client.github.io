@@ -2,7 +2,7 @@ Duplex client HTTP API
 
 Base URL: http://127.0.0.1:65534
 
-API Version: 2.0.0
+API Version: 2.0.3
 
 Currently supported game versions: 1.26.3x-1.26.6x
 
@@ -30,7 +30,7 @@ Response
 {
   "injected": true,
   "injection_time": 3.304103374481201,
-  "api_version": "2.0.0",
+  "api_version": "2.0.3",
   "version": "1.26.52",
   "supported": "1.26.51",
   "sp_message": "ver_family"
@@ -444,5 +444,5 @@ Base URL
 
 http://127.0.0.1:65534
 
-API Version: 2.0.0
+API Version: 2.0.3
 Currently supported game versions: 1.26.3x-1.26.6x
