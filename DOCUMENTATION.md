@@ -47,7 +47,7 @@ The "version" /is the game version,the software is currently injected in. this v
 
 The "supported" key gives you information about what game version the injector used as base.
 
-The "sp_message" key gives information about the compatibility between the client and the game, it can be "ver_family" if for example 1.26.52 isn't supported but 1.26.51 is so it's just falls back to the latest 5x version, it can be "fully" if the version is specifically supported and "latest" if the version has no supported version family and no supported version, it just falls back to the latest supported.
+The "sp_message" key gives information about the compatibility between the client and the game, it can be "ver_family" if for example 1.26.62 isn't supported but 1.26.61 is so it's just falls back to the latest 6x version, it can be "fully" if the version is specifically supported and "latest" if the version has no supported version family and no supported version, it just falls back to the latest supported.
 
 ---
 
