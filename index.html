@@ -354,14 +354,23 @@ const DUPLEX_CONFIG = {
   }
 };
 
+
+
 const DUPLEX_DOCS = {
-  version: "1.0",
+  version: "2.0.3",
 
   intro: {
     title: "Duplex API",
-    lead: "A lightweight module control API for interacting with Duplex Client.",
+    lead: "A lightweight local HTTP API for interacting with Duplex Client.",
     content:
-      "Duplex provides the modules. The API gives you access to them. The interface and tooling around those modules are yours to build."
+      "Duplex provides the modules and backend. The HTTP API exposes their functionality, configuration and metadata. You are free to build your own interface and tooling around them.",
+    notes: [
+      "Base URL: http://127.0.0.1:65534",
+      "API Version: 2.0.3",
+      "Supported game versions: 1.26.3x - 1.26.6x",
+      "All endpoints use HTTP GET requests.",
+      "The API is intended for local applications and custom UIs."
+    ]
   },
 
   sections: [
@@ -370,10 +379,12 @@ const DUPLEX_DOCS = {
       group: "Introduction",
       title: "Getting Started",
       content:
-        "Use the API as a small control layer around Duplex modules. Read the documented endpoint, provide the module and value described by that endpoint, and build the surrounding experience yourself.",
+        "The Duplex HTTP API allows external applications to communicate with the local Duplex backend. You can retrieve module information, read configuration, change values and control module states.",
       notes: [
-        "The API is not a UI framework.",
-        "The full reference is maintained separately from the landing page."
+        "Base URL: http://127.0.0.1:65534",
+        "The backend must be injected before using injection-dependent endpoints.",
+        "The IJN marker indicates that an endpoint requires an injected backend.",
+        "The API does not provide a UI framework. You are responsible for building your own interface."
       ]
     },
 
@@ -384,12 +395,37 @@ const DUPLEX_DOCS = {
       endpoint: "/",
       example: 'api_request("/")',
       description:
-        "The API root endpoint returns a JSON object with the API version and a list of available endpoints.",
+        "Returns the current API and backend status, including the injection state, game version and compatibility information.",
       output: `{
   "injected": true,
-  "injection_time": 0.123456,
-  "api_version": "1.0"
-}`
+  "injection_time": 3.304103374481201,
+  "api_version": "2.0.3",
+  "version": "1.26.52",
+  "supported": "1.26.51",
+  "sp_message": "ver_family"
+}`,
+      notes: [
+        "injected indicates whether the backend is currently injected.",
+        "injection_time represents the time required for injection, in seconds.",
+        "api_version identifies the current API version. It may change when the backend is updated.",
+        "version represents the game version currently being used.",
+        "supported represents the game version used as the injector's compatibility base.",
+        "sp_message describes the compatibility status of the current game version.",
+        "The supported game versions may change without notice."
+      ]
+    },
+
+    {
+      id: "compatibility",
+      group: "Introduction",
+      title: "Game Compatibility",
+      content:
+        "The backend may inject into game versions that are not explicitly supported. In these cases, it can fall back to another supported version. The sp_message field returned by the API root indicates which compatibility method is being used.",
+      notes: [
+        "fully: The current game version is explicitly supported.",
+        "ver_family: The current version is not explicitly supported, but a supported version from the same version family is available.",
+        "latest: Neither the current version nor its version family is supported. The backend falls back to the latest supported version. This can also occur if the game version cannot be read correctly."
+      ]
     },
 
     {
@@ -398,10 +434,16 @@ const DUPLEX_DOCS = {
       title: "Inject",
       endpoint: "/inject",
       example: 'api_request("/inject")',
-      description: "Inject the client.",
+      description:
+        "Injects the complete Duplex Client backend into the game.",
       output: `{
   "success": true
-}`
+}`,
+      notes: [
+        "It is highly recommended to use a long timeout of approximately 90 seconds.",
+        "Injection can take considerably longer on slower machines.",
+        "Check the API root before injecting to determine whether injection is already necessary."
+      ]
     },
 
     {
@@ -410,10 +452,14 @@ const DUPLEX_DOCS = {
       title: "Eject",
       endpoint: "/eject",
       example: 'api_request("/eject")',
-      description: "Eject the client.",
+      description:
+        "Ejects the currently injected backend from the game.",
       output: `{
   "success": true
-}`
+}`,
+      notes: [
+        "This endpoint requires an injected backend."
+      ]
     },
 
     {
@@ -422,99 +468,76 @@ const DUPLEX_DOCS = {
       title: "Reload",
       endpoint: "/reload",
       example: 'api_request("/reload")',
-      description: "Reload the client.",
+      description:
+        "Reloads the backend. This is equivalent to performing an eject followed by a new injection.",
       output: `{
   "success": true
-}`
+}`,
+      notes: [
+        "This endpoint requires an injected backend.",
+        "Calling this endpoint is generally unnecessary and should be avoided unless a reload is specifically required."
+      ]
     },
 
     {
       id: "toggle-module",
       group: "API",
       title: "Toggle Module",
-      endpoint: "/toggle_module/{module}/{state}",
+      endpoint: "/toggle/{module_id}/{toggle}",
+      example: 'api_request("/toggle/reach/true")',
       description:
-        "Toggle a Duplex module using its documented module name and boolean state.",
-      example: 'api_request("/toggle_module/hitbox/True")',
+        "Enables or disables a module using its module ID and the desired boolean state.",
       parameters: [
         {
-          name: "module",
-          description: "The module name."
+          name: "module_id",
+          description:
+            "The ID of the module to control. Module IDs can be retrieved through /get_modules."
         },
         {
-          name: "state",
-          description: "The boolean state represented by the endpoint."
+          name: "toggle",
+          description:
+            "The desired state. Use true to enable the module or false to disable it."
         }
       ],
       output: `{
   "success": true
-}`
+}`,
+      notes: [
+        "This endpoint requires an injected backend.",
+        "Modules with reinject set to true can automatically attempt injection when enabled.",
+        "The operation can still fail if the module cannot be injected."
+      ]
     },
 
     {
-      id: "set-module-value",
+      id: "set-variable",
       group: "API",
-      title: "Set Module Value",
-      endpoint: "/set_module_value/{module}/{value}",
+      title: "Set Variable",
+      endpoint: "/set/{variable_name}/{value}",
+      example: 'api_request("/set/reach/6.0")',
       description:
-        "Set a documented value for a Duplex module.",
-      example:
-        'api_request("/set_module_value/hitbox/6.0")',
+        "Sets an exposed backend variable to a new value.",
       parameters: [
         {
-          name: "module",
-          description: "The module name."
+          name: "variable_name",
+          description:
+            "The ID of the variable to modify. Variable IDs can be retrieved through /get_vars."
         },
         {
           name: "value",
           description:
-            "The module value represented by the endpoint."
+            "The new value to assign to the variable."
         }
       ],
       output: `{
   "success": true
-}`
-    },
-
-    {
-      id: "get-module-config",
-      group: "API",
-      title: "Get Module Config",
-      endpoint: "/get_module_config/{module}",
-      description:
-        "Retrieve the configuration for a specified Duplex module.",
-      example:
-        'api_request("/get_module_config/hitbox")',
-      parameters: [
-        {
-          name: "module",
-          description: "The module name."
-        }
-      ],
-      output: `{
-  "config": {
-    "value": 6.0,
-    "enabled": true
-  },
-  "success": true
-}`
-    },
-
-    {
-      id: "get-working",
-      group: "API",
-      title: "Get Working Modules",
-      endpoint: "/get_working",
-      example: 'api_request("/get_working")',
-      description:
-        "Retrieve a list of currently working modules in the client.",
-      output: `{
-  "working_modules": [
-    "hitbox",
-    "autojump",
-    "speed"
-  ]
-}`
+}`,
+      notes: [
+        "This endpoint requires an injected backend.",
+        "Values outside the permitted range are rejected.",
+        "Invalid variable names and values that do not match the variable type are rejected.",
+        "A failed operation returns success: false."
+      ]
     },
 
     {
@@ -524,86 +547,226 @@ const DUPLEX_DOCS = {
       endpoint: "/get_config",
       example: 'api_request("/get_config")',
       description:
-        "Retrieve the configuration for the client.",
+        "Returns the current configuration of all modules, including their toggle states and configured values where applicable.",
       output: `{
-  "success": true
-}`
-    },
-
-    {
-      id: "get-version",
-      group: "API",
-      title: "Get Version",
-      endpoint: "/get_version",
-      example: 'api_request("/get_version")',
-      description:
-        "Retrieve the Minecraft SDK version.",
-      output: `{
-  "version": "1.0"
-}`
-    },
-
-    {
-      id: "get-all-modules",
-      group: "API",
-      title: "Get All Modules",
-      endpoint: "/get_all_modules",
-      example: 'api_request("/get_all_modules")',
-      description:
-        "Retrieve a dictionary of all available modules in the client.",
-      output: `{
-  "all_modules": {
-    "hitbox": {
-      "min_value": 1.0,
-      "max_value": 10.0,
-      "default_value": 6.0,
-      "category": "combat"
-    },
-    "autojump": {
-      "category": "movement"
-    }
+  "reach": {
+    "toggle": true,
+    "value": 6.0
+  },
+  "forcecords": {
+    "toggle": false
+  },
+  "forcedisablecords": {
+    "toggle": false
+  },
+  "hitbox": {
+    "toggle": false,
+    "value": 0.6
+  },
+  "phasefly": {
+    "toggle": false
+  },
+  "speed": {
+    "toggle": false,
+    "value": 0.1000000015
   }
-}`
+}`,
+      notes: [
+        "This endpoint requires an injected backend.",
+        "Modules without configurable values only expose their toggle state.",
+        "Use this endpoint when initializing or refreshing a custom UI to synchronize its controls with the backend."
+      ]
     },
 
     {
-      id: "get-modules-by-category",
+      id: "get-modules",
       group: "API",
-      title: "Get Modules by Category",
-      endpoint: "/get_modules_by_category/{category}",
-      example:
-        'api_request("/get_modules_by_category/combat")',
+      title: "Get Modules",
+      endpoint: "/get_modules",
+      example: 'api_request("/get_modules")',
       description:
-        "Retrieve a list of modules filtered by a specific category.",
-      parameters: [
-        {
-          name: "category",
-          description:
-            "The category name to filter modules."
-        }
+        "Returns all modules exposed by the backend and their metadata. This includes their injection state, category, display name, description and reinjection behavior.",
+      output: `{
+  "reach": {
+    "injected": true,
+    "category": "combat",
+    "name": "Reach",
+    "description": "Increases the distance you can hit entities.",
+    "reinject": false
+  },
+  "reach_spoofer_core": {
+    "injected": true,
+    "category": "combat",
+    "name": "Reach Spoofer Core",
+    "description": "The configuration module to fix cross client reach spoofing.",
+    "reinject": false
+  },
+  "reach_spoofer_oderso": {
+    "injected": false,
+    "category": "combat",
+    "name": "Reach Spoofer Oderso",
+    "description": "The module that handles reach spoofing for the OderSo client logic.",
+    "reinject": true
+  },
+  "forcecords": {
+    "injected": true,
+    "category": "visual",
+    "name": "Force Coordinates",
+    "description": "Forces the game to always show coordinates.",
+    "reinject": false
+  },
+  "forcedisablecords": {
+    "injected": true,
+    "category": "visual",
+    "name": "Force Disable Coordinates",
+    "description": "Forces the game to never show coordinates.",
+    "reinject": false
+  },
+  "hitbox": {
+    "injected": true,
+    "category": "combat",
+    "name": "Hitbox",
+    "description": "Changes the size of entity hitboxes.",
+    "reinject": false
+  },
+  "timer": {
+    "injected": true,
+    "category": "misc",
+    "name": "Timer",
+    "description": "Changes the game speed.",
+    "reinject": false
+  },
+  "phasefly": {
+    "injected": true,
+    "category": "movement",
+    "name": "Phase Fly",
+    "description": "Allows you to fly through blocks.",
+    "reinject": false
+  },
+  "speed": {
+    "injected": false,
+    "category": "movement",
+    "name": "Speed",
+    "description": "Increases your movement speed.",
+    "reinject": false
+  }
+}`,
+      notes: [
+        "injected indicates whether the module is currently injected.",
+        "category identifies the module category.",
+        "name is the human-readable module name.",
+        "description provides a short explanation of the module.",
+        "reinject indicates whether the module can automatically attempt injection when enabled, even if injected is false.",
+        "A reinjection attempt can still fail, in which case the operation returns success: false.",
+        "Use the module IDs as the identifiers for /toggle."
+      ]
+    },
+
+    {
+      id: "get-vars",
+      group: "API",
+      title: "Get Variables",
+      endpoint: "/get_vars",
+      example: 'api_request("/get_vars")',
+      description:
+        "Returns all variables exposed by the backend and their metadata. This information allows custom frontends to dynamically generate controls for configurable module values.",
+      output: `{
+  "reach": {
+    "owner": "reach",
+    "type": "<f",
+    "min_value": 3.0,
+    "max_value": 6.0,
+    "default_value": 3.0,
+    "name": "Reach",
+    "description": "The distance you can hit entities."
+  },
+  "reach_spoof_min": {
+    "owner": "reach_spoofer_core",
+    "type": "<f",
+    "min_value": 0.0,
+    "max_value": 6.0,
+    "default_value": 2.7,
+    "name": "Minimum Reach Spoof",
+    "description": "The minimum reach value to spoof."
+  },
+  "reach_spoof_range": {
+    "owner": "reach_spoofer_core",
+    "type": "<f",
+    "min_value": 0.0,
+    "max_value": 3.0,
+    "default_value": 0.3,
+    "name": "Reach Spoof Range",
+    "description": "The range of reach values to spoof."
+  },
+  "reach_spoof_activation_threshold": {
+    "owner": "reach_spoofer_core",
+    "type": "<f",
+    "min_value": 0.0,
+    "max_value": 10.0,
+    "default_value": 3.0,
+    "name": "Reach Spoof Activation Threshold",
+    "description": "The threshold at which reach spoofing activates."
+  },
+  "hitbox_width": {
+    "owner": "hitbox",
+    "type": "<f",
+    "min_value": 0.6,
+    "max_value": 10.0,
+    "default_value": 0.6,
+    "name": "Hitbox Width",
+    "description": "The width of entity hitboxes."
+  },
+  "hitbox_height": {
+    "owner": "hitbox",
+    "type": "<f",
+    "min_value": 0.6,
+    "max_value": 10.0,
+    "default_value": 1.8,
+    "name": "Hitbox Height",
+    "description": "The height of entity hitboxes."
+  },
+  "tps": {
+    "owner": "timer",
+    "type": "<f",
+    "min_value": 0.1,
+    "max_value": 40.0,
+    "default_value": 20.0,
+    "name": "TPS",
+    "description": "The number of ticks per second the game runs at."
+  }
+}`,
+      notes: [
+        "owner identifies the module that owns the variable.",
+        "type identifies the variable's data type. For example, <f represents a floating-point value.",
+        "min_value specifies the minimum accepted value.",
+        "max_value specifies the maximum accepted value.",
+        "default_value specifies the default value.",
+        "name is the human-readable variable name.",
+        "description explains the purpose of the variable.",
+        "Use the variable IDs as the identifiers for /set.",
+        "This endpoint requires an injected backend."
       ],
-      output: `{
-  "modules": [
-    "hitbox",
-    "autojump"
-  ]
-}`
+      content:
+        "Custom frontends can use this endpoint to dynamically create appropriate controls. For example, a floating-point variable can be represented by a slider using its minimum and maximum values."
     },
 
     {
-      id: "get-categories",
-      group: "API",
-      title: "Get Categories",
-      endpoint: "/get_categories",
-      example: 'api_request("/get_categories")',
-      description:
-        "Retrieve a list of all available categories.",
-      output: `{
-  "categories": [
-    "combat",
-    "movement"
-  ]
-}`
+      id: "frontend-flow",
+      group: "Examples",
+      title: "Frontend Initialization",
+      content:
+        "A frontend can use the following initialization sequence to connect to the backend and synchronize its controls.",
+      notes: [
+        "1. Check whether the backend is available using GET /.",
+        "2. If injected is false, call GET /inject. Use a long timeout of approximately 90 seconds.",
+        "3. Retrieve module information and injection states using GET /get_modules.",
+        "4. Retrieve variable metadata using GET /get_vars.",
+        "5. Retrieve the current module configuration using GET /get_config.",
+        "6. Build the UI controls using the module and variable metadata.",
+        "7. Synchronize all controls with the configuration returned by /get_config.",
+        "8. When the user changes a module state, call /toggle/{module_id}/{toggle}.",
+        "9. When the user changes a variable, call /set/{variable_name}/{value}."
+      ]
     },
 
     {
@@ -611,32 +774,122 @@ const DUPLEX_DOCS = {
       group: "Examples",
       title: "Python Example",
       content:
-        "The following example illustrates the API-request shape used on the landing page. It is a visual/documentation example and does not introduce additional endpoints.",
-      example: `import urllib.request
+        "A minimal Python implementation for communicating with the Duplex HTTP API. All requests use GET, and the timeout is configured to accommodate longer operations such as injection.",
+      example: `import json
+import urllib.request
 import urllib.error
 
-def api_request(endpoint, method="GET", bypass=False, show_log=True):
-    try:
-        req = urllib.request.Request(f"{API_BASE}{endpoint}")
-        req.add_header("Content-Type", "application/json")
+API_BASE = "http://127.0.0.1:65534"
 
-        response = urllib.request.urlopen(
-            req,
-            timeout=99.0
+def api_request(endpoint):
+    try:
+        request = urllib.request.Request(
+            f"{API_BASE}{endpoint}",
+            method="GET"
         )
 
-        if response.getcode() == 200:
+        with urllib.request.urlopen(
+            request,
+            timeout=90.0
+        ) as response:
             return json.loads(
-                response.read().decode()
+                response.read().decode("utf-8")
             )
 
-    except urllib.error.URLError as e:
-        print(e)
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
+        print(f"API request failed: {error}")
+        return {}
 
-    return {}`
+# Check backend status
+status = api_request("/")
+
+# Inject if necessary
+if status and not status.get("injected", False):
+    result = api_request("/inject")
+    print("Injection:", result)
+
+# Retrieve backend information
+modules = api_request("/get_modules")
+variables = api_request("/get_vars")
+config = api_request("/get_config")
+
+# Enable Reach
+result = api_request("/toggle/reach/true")
+
+# Set Reach value
+result = api_request("/set/reach/6.0")`
+    },
+
+    {
+      id: "updates",
+      group: "Advanced",
+      title: "Backend Updates",
+      content:
+        "The backend does not currently provide an automatic update mechanism. Applications that distribute or manage their own backend should implement update checking separately.",
+      notes: [
+        "Latest release endpoint: https://api.github.com/repos/duplex-client/duplex-client.github.io/releases/latest",
+        "Compare the release tag with the api_version returned by GET /.",
+        "Release tags use the v prefix, for example v2.0.3 corresponds to API version 2.0.3.",
+        "Available release assets can be found in the assets array of the GitHub release response.",
+        "The standalone build is named DuplexServer-standalone.zip.",
+        "The onefile build is named DuplexServer.exe.",
+        "Use the browser download URL provided by the corresponding asset's browser_download_url field."
+      ],
+      content:
+        "There are two available build formats. The onefile build is easier to distribute but may be flagged as a false positive by antivirus software. The standalone build is generally less likely to trigger antivirus detections, but is larger and must be extracted before use."
+    },
+
+    {
+      id: "quick-reference",
+      group: "Reference",
+      title: "Quick Reference",
+      content:
+        "All currently documented API endpoints are listed below.",
+      notes: [
+        "GET / - Check API and backend status.",
+        "GET /inject - Inject the backend.",
+        "GET /eject - Eject the backend.",
+        "GET /reload - Eject and reinject the backend.",
+        "GET /toggle/{module_id}/{toggle} - Enable or disable a module.",
+        "GET /set/{variable_name}/{value} - Set a variable.",
+        "GET /get_config - Retrieve the current configuration.",
+        "GET /get_modules - Retrieve all modules and their metadata.",
+        "GET /get_vars - Retrieve all variables and their metadata."
+      ]
+    },
+
+    {
+      id: "success-reference",
+      group: "Reference",
+      title: "Response Status",
+      content:
+        "Most operations return a JSON object containing a success boolean.",
+      output: `{
+  "success": true
+}`,
+      notes: [
+        "success: true indicates that the operation completed successfully.",
+        "success: false indicates that the operation failed.",
+        "For /toggle and /set, a failed operation can indicate an invalid module or variable, an invalid value, an out-of-range value or an unsuccessful module injection."
+      ]
+    },
+
+    {
+      id: "sp-message-reference",
+      group: "Reference",
+      title: "Compatibility Messages",
+      content:
+        "The sp_message field returned by GET / indicates how the backend handles the current game version.",
+      notes: [
+        "fully: The current game version is explicitly supported.",
+        "ver_family: The current game version is not explicitly supported, but a supported version from the same version family is available.",
+        "latest: Neither the current game version nor its version family is supported. The backend falls back to the latest supported version. This can also happen if the game version cannot be read correctly."
+      ]
     }
   ]
 };
+
+
 
 // ==========================================
 // PRICING CONFIG — EDIT YOUR PLANS HERE
